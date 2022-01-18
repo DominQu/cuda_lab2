@@ -1,7 +1,50 @@
 #include "sorter.cuh"
+///////////////////////////////////////////////////
+// GPU section
+__global__ void dBitonicSubSort(float *pointsx, float *pointsy) {
+    // shared memory allocation
 
+}
+
+__global__ void dBitonicSort(float *pointsx, float *pointsy) {
+    //main kernel responsible for sorting
+
+    int numSMs;
+    cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
+    int poweroftwo = (int)floor(log2((float)numSMs));
+    dim3 threadnum = 1024;
+    dim3 blocknum = 2^poweroftwo;
+    dBitonicSubSort<<<blocknum, threadnum>>>(pointsx, pointsy);
+    // printf("Power of two: %d\n",poweroftwo);
+
+}
+
+void Sorter::GPUsort(thrust::device_vector<float> &dpointsx,
+                     thrust::device_vector<float> &dpointsy) {
+    auto start2 = std::chrono::high_resolution_clock::now();
+
+    // allocate GPU memory
+    // thrust::device_vector<float> dpointsx = pointsx;
+    // thrust::device_vector<float> dpointsy = pointsy;
+
+    thrust::sort_by_key(dpointsx.begin(), dpointsx.end(), dpointsy.begin());
+
+    // get device pointer
+    // thrust::device_ptr<float> pdpointsx = dpointsx.data();
+    // thrust::device_ptr<float> pdpointsy = dpointsy.data();
+    
+    // dBitonicSort<<<1,1>>>(pdpointsx.get(), pdpointsy.get());
+    cudaDeviceSynchronize();
+    auto stop2 = std::chrono::high_resolution_clock::now();
+    auto durationmili2 = std::chrono::duration_cast<std::chrono::milliseconds>(stop2 - start2);
+    auto durationmicro2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2);
+    std::cout << "Sort duration: " << durationmili2.count() << "." << durationmicro2.count() << " miliseconds" << std::endl;
+}
+
+///////////////////////////////////////////////////
+// CPU section
 void Sorter::CPUsort(thrust::host_vector<float> &pointsx,
-                                           thrust::host_vector<float> &pointsy) {
+                     thrust::host_vector<float> &pointsy) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -50,3 +93,14 @@ void Sorter::QuickSort(thrust::host_vector<float> &pointsx,
         Sorter::QuickSort(pointsx,pointsy,good_index + 1,end);    
     }
 }
+
+// thrust::host_vector<float> BitonicSort(thrust::host_vector<float> &pointsx,
+//                  thrust::host_vector<float> &pointsy,
+//                  int vecsize) {
+//     if(pointsx.size() <=1) {
+//         return pointsx;
+//     }
+//     else {
+//         thrust::host_vector<float> lower = BitonicSort() 
+//     }
+// }

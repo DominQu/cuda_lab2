@@ -12,8 +12,8 @@ class Integrator {
     public:
         float CPUintegrator(const thrust::host_vector<float> &vecx,
                              const thrust::host_vector<float> &vecy);
-        float GPUintegrator(const thrust::host_vector<float> &vecx,
-                             const thrust::host_vector<float> &vecy);
+        float GPUintegrator( thrust::device_vector<float> &vecx,
+                             thrust::device_vector<float> &vecy);
         Integrator();
         ~Integrator();
 };

@@ -11,6 +11,7 @@
 
 
 const int POINT_RANGE = 100000;
+const int NUM_POINTS = 1000000;
 
 
 thrust::host_vector<float> pointgenerator(int num_points) {
@@ -42,56 +43,43 @@ int main(int argc, char *argv[]) {
     // }
 
     std::cout.precision(15);
-    thrust::host_vector<float> vecx = pointgenerator(100000);
-    thrust::host_vector<float> vecy = pointgenerator(100000);
+    thrust::host_vector<float> vecx = pointgenerator(NUM_POINTS);
+    thrust::host_vector<float> vecy = pointgenerator(NUM_POINTS);
     Sorter sorter;
     Integrator integrator;
     float integralGPU;
     float integralCPU;
 
-
-
-    sorter.CPUsort(vecx, vecy);
     auto start = std::chrono::high_resolution_clock::now();
 
-    // thrust::sort(vecx.begin(), vecx.end());
+    thrust::device_vector<float> dvecx = vecx;
+    thrust::device_vector<float> dvecy = vecy;
 
-
-    integralGPU = integrator.GPUintegrator(vecx, vecy);
+    sorter.GPUsort(dvecx, dvecy);
+    cudaDeviceSynchronize();
+    integralGPU = integrator.GPUintegrator(dvecx, dvecy);
+    cudaDeviceSynchronize();
     std::cout << "integralGPU = " << integralGPU << std::endl;
-    // integralCPU = integrator.CPUintegrator(vecx, vecy);
-    // std::cout << "integralCPU = " << integralCPU << std::endl;
 
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto durationmili = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     auto durationmicro = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << "Sort duration: " << durationmili.count() << "." << durationmicro.count() << " milliseconds" << std::endl;
+    std::cout << "GPU program duration: " << durationmili.count() << "." << durationmicro.count() << " milliseconds" << std::endl;
+
+// measure GPU time
+
+    auto start1 = std::chrono::high_resolution_clock::now();
+    
+    sorter.CPUsort(vecx, vecy);
+
+    integralCPU = integrator.CPUintegrator(vecx, vecy);
+    std::cout << "integralCPU = " << integralCPU << std::endl;
 
 
-    // std::cout << "vecy: " << std::endl;
-    // for(const auto &i:vecy){
-    //     std::cout << i << std::endl;
-    // }
-    // std::cout << "vecx: " << std::endl;
-
-    // for(const auto &i:vecx){
-    //     std::cout << i << std::endl;
-    // }
-
-
-
-
-    // auto start1 = std::chrono::high_resolution_clock::now();
-
-    // // thrust::sort_by_key(vecx.begin(), vecx.end(), vecy.begin());
-    // thrust::device_vector<double> dvecx = vecx;
-    // int i;
-    // thrust::sort(dvecx.begin(), dvecx.end());
-
-    // auto stop1 = std::chrono::high_resolution_clock::now();
-    // auto durationmili1 = std::chrono::duration_cast<std::chrono::milliseconds>(stop1 - start1);
-    // auto durationmicro1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start1);
-    // std::cout << "Sort duration: " << durationmili1.count() << "." << durationmicro1.count() << " milliseconds" << std::endl;
+    auto stop1 = std::chrono::high_resolution_clock::now();
+    auto durationmili1 = std::chrono::duration_cast<std::chrono::milliseconds>(stop1 - start1);
+    auto durationmicro1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start1);
+    std::cout << "CPU program duration: " << durationmili1.count() << "." << durationmicro1.count() << " milliseconds" << std::endl;
 
 }

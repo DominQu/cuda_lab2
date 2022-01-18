@@ -12,8 +12,9 @@ class Sorter {
         Sorter() {};
         ~Sorter() {};
         void CPUsort(thrust::host_vector<float> &pointsx,
-                                           thrust::host_vector<float> &pointsy);
-        thrust::host_vector<float> GPUsort(thrust::host_vector<float> points);
+                     thrust::host_vector<float> &pointsy);
+        void GPUsort(thrust::device_vector<float> &dpointsx,
+                     thrust::device_vector<float> &dpointsy);
     private:
         void QuickSort(thrust::host_vector<float> &pointsx, 
                        thrust::host_vector<float> &pointsy, 
