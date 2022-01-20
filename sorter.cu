@@ -3,7 +3,7 @@
 // GPU section
 __global__ void dBitonicSubSort(float *pointsx, float *pointsy) {
     // shared memory allocation
-
+    __shared__ s
 }
 
 __global__ void dBitonicSort(float *pointsx, float *pointsy) {
@@ -11,9 +11,12 @@ __global__ void dBitonicSort(float *pointsx, float *pointsy) {
 
     int numSMs;
     cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
-    int poweroftwo = (int)floor(log2((float)numSMs));
-    dim3 threadnum = 1024;
-    dim3 blocknum = 2^poweroftwo;
+    int threadperSM;
+    cudaDeviceGetAttribute(&threadperSM, cudaDevAttrMaxThreadsPerBlock, 0);
+
+    // int poweroftwo = (int)floor(log2((float)numSMs));
+    dim3 threadnum = 512;
+    dim3 blocknum = (numSMs * threadperSM) / threadnum.x + 1;
     dBitonicSubSort<<<blocknum, threadnum>>>(pointsx, pointsy);
     // printf("Power of two: %d\n",poweroftwo);
 

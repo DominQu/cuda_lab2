@@ -3,6 +3,8 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+const int SHARED_SIZE = 1024
+
 
 class Integrator {
     private:

@@ -21,38 +21,51 @@ float Integrator::CPUintegrator(const thrust::host_vector<float> &vecx,const thr
 }
 ////////////////////////////////////////////////////////////////////////
 // GPU implementation
-__global__ void dGPUsubintegrator()
+__global__ void dGPUsubintegrator(float *dvecx, 
+                                  float *dvecy,
+                                  float *sum,
+                                  int *maxindex)
 {
+    __shared__ float pointsx[SHARED_SIZE];
+    __shared__ float pointsy[SHARED_SIZE];
 
+    uint index = blockIdx.x * blockDim + threadIdx.x;
+    if(index < *maxindex) {
+        pointsx[index] = dvecx[index];
+        pointsy[index] = dvecy[index];
+
+        __syncthreads();
+
+        pointsy[index] = ((pointsy[index] + pointsy[index+1]) * (pointsx[index+1] - pointsx[index]) ) / 2
+
+        __syncthreads();
+
+        if(threadIdx.x == 0) {
+            for(int i = index; i < index + blockDim; i++) {
+                sum[blockIdx.x] += points[i];
+            }
+        }
+    }
 }
 __global__ void dGPUintegrator(float *dvecx, 
                                float *dvecy,
                                float *integral,
-                               int *maxindex,
-                               int *pointsperblock)
+                               int *maxindex)
 {
-    int maxpoints = 5000;
     int numSMs;
     cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
-    //shared memory allocation
-    extern __shared__ float points[];
-    for(int i = 0; i < *pointsperblock; i+= maxpoints) {
-        if( *pointsperblock - i > maxpoints) {
-            for(int i = blockIdx.x * (*pointsperblock) ; 
-                i < blockIdx.x * (*pointsperblock) + maxpoints;
-                i++) {
-                    points[i] = dvecx[i];
-                    points[i + maxpoints] = dvecy[i];
-                }
 
-        }
-        else {
-
-        }
+    int threadnum = SHARED_SIZE;
+    int blocknum = maxindex / threadnum + 1;
+    __device__ sum[blocknum];
+    dGPUsubintegrator<<<blocknum, threadnum>>>(dvecx, 
+                                               dvecy,
+                                               sum,
+                                               maxindex);
+    cudaDeviceSynchronize();
+    for( const auto i : sum) {
+        *integral += i;
     }
-
-    int threadnum = 1024;
-    dGPUsubintegrator<<<1, threadnum>>>();
 
 }
 
