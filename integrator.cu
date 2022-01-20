@@ -29,21 +29,32 @@ __global__ void dGPUsubintegrator(float *dvecx,
     __shared__ float pointsx[SHARED_SIZE];
     __shared__ float pointsy[SHARED_SIZE];
 
-    uint index = blockIdx.x * blockDim + threadIdx.x;
+    uint index = blockIdx.x * blockDim.x + threadIdx.x;
     if(index < *maxindex) {
-        pointsx[index] = dvecx[index];
-        pointsy[index] = dvecy[index];
+        pointsx[threadIdx.x] = dvecx[index];
+        pointsy[threadIdx.x] = dvecy[index];
 
         __syncthreads();
-
-        pointsy[index] = ((pointsy[index] + pointsy[index+1]) * (pointsx[index+1] - pointsx[index]) ) / 2
-
+        if(threadIdx.x < SHARED_SIZE-1) {
+            pointsy[threadIdx.x] = ((pointsy[threadIdx.x] + pointsy[threadIdx.x+1]) * (pointsx[threadIdx.x+1] - pointsx[threadIdx.x]) ) / 2;
+        }
         __syncthreads();
 
         if(threadIdx.x == 0) {
-            for(int i = index; i < index + blockDim; i++) {
-                sum[blockIdx.x] += points[i];
+            if(blockIdx.x == gridDim.x - 1) {
+                for(int i = 0; i < (*maxindex % SHARED_SIZE); i++) {
+                    sum[blockIdx.x*sizeof(float)] += (float)pointsy[i];
+                }
+                float suma = sum[blockIdx.x*sizeof(float)];
+                // printf("last sum %d ", suma);
             }
+            else {
+                for(int i = 0; i < SHARED_SIZE-1; i++) {
+                    sum[blockIdx.x*sizeof(float)] += (float)pointsy[i];
+                }
+
+            }
+
         }
     }
 }
@@ -56,17 +67,24 @@ __global__ void dGPUintegrator(float *dvecx,
     cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
 
     int threadnum = SHARED_SIZE;
-    int blocknum = maxindex / threadnum + 1;
-    __device__ sum[blocknum];
+    int blocknum = *maxindex / threadnum + 1;
+    // __device__ sum[blocknum];
+    // printf("threadnum %d ", threadnum);
+    // printf("blocknum %d ", blocknum);
+    
+    float *sum;
+    cudaMalloc(&sum, sizeof(float)*blocknum);
     dGPUsubintegrator<<<blocknum, threadnum>>>(dvecx, 
                                                dvecy,
                                                sum,
                                                maxindex);
-    cudaDeviceSynchronize();
-    for( const auto i : sum) {
-        *integral += i;
-    }
 
+    cudaPeekAtLastError();
+    cudaDeviceSynchronize();
+    for(int i = 0 ; i < blocknum; i++) {
+        *integral += (float)sum[i*sizeof(float)];
+    }
+    cudaFree(sum);
 }
 
 __global__ void dsimpleGPUintegrator(float *dvecx, 
@@ -102,8 +120,8 @@ float Integrator::GPUintegrator(thrust::device_vector<float> &dvecx,
     dim3 threadnum = 256;
     dim3 blocknum =  dvecx.size() / threadnum.x + 1; 
 
-    dsimpleGPUintegrator<<<blocknum, threadnum>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
-
+    // dsimpleGPUintegrator<<<blocknum, threadnum>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
+    dGPUintegrator<<<1,1>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
     cudaMemcpy(&GPUintegral, this->pdGPUintegral, sizeof(float), cudaMemcpyDeviceToHost);
 
     cudaFree(pmaxindex);

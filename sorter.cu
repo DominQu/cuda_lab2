@@ -1,25 +1,121 @@
 #include "sorter.cuh"
 ///////////////////////////////////////////////////
 // GPU section
-__global__ void dBitonicSubSort(float *pointsx, float *pointsy) {
-    // shared memory allocation
-    __shared__ s
+// __global__ void dBitonicSubSort(float *pointsx, float *pointsy) {
+//     // shared memory allocation
+//     __shared__ s
+// }
+__device__ void CompareAndSwap(float &x, float &nextx, float &y, float &nexty, int direction) {
+    if(direction == 0 ) {
+        //smaller than bigger
+        if( x > nextx) {
+            float temp = nextx;
+            nextx = x;
+            x = temp;
+            float tempy = nexty;
+            nexty = y;
+            y = tempy;
+            return;
+        }
+        else {
+            return;
+        }
+    }
+    else {
+        //bigger than smaller
+        if (nextx > x) {
+            float temp = nextx;
+            nextx = x;
+            x = temp;
+            float tempy = nexty;
+            nexty = y;
+            y = tempy;
+            return; 
+        }
+        else { 
+            return;
+        }
+    }
+}
+__device__ void Swap(float &first, float &second) {
+
+    float temp = first;
+    first = second;
+    second = temp;
 }
 
-__global__ void dBitonicSort(float *pointsx, float *pointsy) {
+__global__ void dBitonicSort(float *pointsx, float *pointsy, int *vectorlen) {
     //main kernel responsible for sorting
+    extern __shared__ float shared[];
 
-    int numSMs;
-    cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
-    int threadperSM;
-    cudaDeviceGetAttribute(&threadperSM, cudaDevAttrMaxThreadsPerBlock, 0);
+    int index = threadIdx.x;
+        // printf("curretn index %d\n", index);
+    shared[index] = pointsx[index];
+    // shared[index + *vectorlen] = pointsy[index];
+    __syncthreads();
+    // printf("vector len %d ", *vectorlen);
+    // if(index < *vectorlen){
+    
+        for(int size = 2; size <= *vectorlen; size *= 2) {
+            // int direction = (threadIdx.x& size/2 ) != 0;
 
-    // int poweroftwo = (int)floor(log2((float)numSMs));
-    dim3 threadnum = 512;
-    dim3 blocknum = (numSMs * threadperSM) / threadnum.x + 1;
-    dBitonicSubSort<<<blocknum, threadnum>>>(pointsx, pointsy);
-    // printf("Power of two: %d\n",poweroftwo);
+            for(int step = size/2; step>0; step /= 2) {
+                int swapindex = index ^ step;
+                // printf("swapindex %d\n", swapindex);
 
+                // uint element = 2*threadIdx.x - (threadIdx.x & (step -1));
+                // CompareAndSwap(pointsx[element],
+                //             pointsx[element + step],
+                //             pointsy[element],
+                //             pointsy[element + step],
+                //             direction);
+                if(swapindex > index) {
+                    if( (index & step) == 0) {
+                        if(shared[threadIdx.x] > shared[swapindex]) {
+                            Swap(shared[threadIdx.x], shared[swapindex]);
+                            // Swap(shared[threadIdx.x + *vectorlen], shared[swapindex + *vectorlen]);
+                        }
+                    }
+                    else {
+                        if(shared[threadIdx.x] < shared[swapindex]) {
+                            Swap(shared[threadIdx.x], shared[swapindex]);
+                            // Swap(shared[threadIdx.x + *vectorlen], shared[swapindex + *vectorlen]);
+                        }
+                    }
+                }
+                __syncthreads();
+            }
+        }
+    
+    pointsx[index] = shared[index];
+    // pointsy[index] = shared[index + *vectorlen];
+}
+
+void BitonicSort(thrust::device_vector<float> &dpointsx,
+                 thrust::device_vector<float> &dpointsy)
+{
+    thrust::device_ptr<float> pdpointsx = dpointsx.data();
+    thrust::device_ptr<float> pdpointsy = dpointsy.data();
+
+    int *dvectorlen;
+    int vectorlen = (int)dpointsx.size();
+    cudaMalloc(&dvectorlen, sizeof(int));
+    cudaMemcpy(dvectorlen, &vectorlen, sizeof(int), cudaMemcpyHostToDevice);
+
+    int threadnum = 256;
+    int blocknum =  dpointsx.size() / ( 2 * threadnum ) + 1;
+    std::cout << "blocknum " << blocknum << std::endl;
+
+    for( auto i : dpointsx) {
+        std::cout << i << std::endl;
+    }
+    std::cout << "sorting\n";
+    dBitonicSort<<<1, threadnum, sizeof(float)*2*256>>>(pdpointsx.get(), pdpointsy.get(), dvectorlen);
+    cudaDeviceSynchronize();
+    cudaFree(dvectorlen);
+    for( auto i : dpointsx) {
+        std::cout << i << std::endl;
+    }
 }
 
 void Sorter::GPUsort(thrust::device_vector<float> &dpointsx,
@@ -30,7 +126,8 @@ void Sorter::GPUsort(thrust::device_vector<float> &dpointsx,
     // thrust::device_vector<float> dpointsx = pointsx;
     // thrust::device_vector<float> dpointsy = pointsy;
 
-    thrust::sort_by_key(dpointsx.begin(), dpointsx.end(), dpointsy.begin());
+    // thrust::sort_by_key(dpointsx.begin(), dpointsx.end(), dpointsy.begin());
+    BitonicSort(dpointsx, dpointsy);
 
     // get device pointer
     // thrust::device_ptr<float> pdpointsx = dpointsx.data();
@@ -96,14 +193,3 @@ void Sorter::QuickSort(thrust::host_vector<float> &pointsx,
         Sorter::QuickSort(pointsx,pointsy,good_index + 1,end);    
     }
 }
-
-// thrust::host_vector<float> BitonicSort(thrust::host_vector<float> &pointsx,
-//                  thrust::host_vector<float> &pointsy,
-//                  int vecsize) {
-//     if(pointsx.size() <=1) {
-//         return pointsx;
-//     }
-//     else {
-//         thrust::host_vector<float> lower = BitonicSort() 
-//     }
-// }

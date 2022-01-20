@@ -11,7 +11,7 @@
 
 
 const int POINT_RANGE = 100000;
-const int NUM_POINTS = 1000000;
+const int NUM_POINTS = 1<<8; //the program works for NUM_POINTS being a power of two
 
 
 thrust::host_vector<float> pointgenerator(int num_points) {
@@ -35,51 +35,49 @@ thrust::host_vector<float> pointgenerator(int num_points) {
     return vec;
 }
 
-int main(int argc, char *argv[]) {
+int main() {
 
-    // std::vector<int> arguments;
-    // for(int arg = 1; arg < argc; arg++) {
-    //     arguments.push_back(argv[arg])
-    // }
 
     std::cout.precision(15);
     thrust::host_vector<float> vecx = pointgenerator(NUM_POINTS);
     thrust::host_vector<float> vecy = pointgenerator(NUM_POINTS);
+
     Sorter sorter;
     Integrator integrator;
+    
+    //variables for the result of integration
     float integralGPU;
     float integralCPU;
 
-    auto start = std::chrono::high_resolution_clock::now();
 
     thrust::device_vector<float> dvecx = vecx;
     thrust::device_vector<float> dvecy = vecy;
 
     sorter.GPUsort(dvecx, dvecy);
     cudaDeviceSynchronize();
+    auto start = std::chrono::high_resolution_clock::now();
     integralGPU = integrator.GPUintegrator(dvecx, dvecy);
     cudaDeviceSynchronize();
-    std::cout << "integralGPU = " << integralGPU << std::endl;
-
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto durationmili = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     auto durationmicro = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << "GPU program duration: " << durationmili.count() << "." << durationmicro.count() << " milliseconds" << std::endl;
+    std::cout << "GPU integration time: " << durationmili.count() << "." << durationmicro.count() << " milliseconds" << std::endl;
+    std::cout << "integralGPU = " << integralGPU << std::endl;
 
 // measure GPU time
 
-    auto start1 = std::chrono::high_resolution_clock::now();
     
     sorter.CPUsort(vecx, vecy);
 
+    auto start1 = std::chrono::high_resolution_clock::now();
     integralCPU = integrator.CPUintegrator(vecx, vecy);
-    std::cout << "integralCPU = " << integralCPU << std::endl;
 
 
     auto stop1 = std::chrono::high_resolution_clock::now();
     auto durationmili1 = std::chrono::duration_cast<std::chrono::milliseconds>(stop1 - start1);
     auto durationmicro1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start1);
-    std::cout << "CPU program duration: " << durationmili1.count() << "." << durationmicro1.count() << " milliseconds" << std::endl;
+    std::cout << "CPU integration time: " << durationmili1.count() << "." << durationmicro1.count() << " milliseconds" << std::endl;
+    std::cout << "integralCPU = " << integralCPU << std::endl;
 
 }
