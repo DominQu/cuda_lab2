@@ -116,14 +116,20 @@ float Integrator::GPUintegrator(thrust::device_vector<float> &dvecx,
     cudaMalloc(&pmaxindex, sizeof(int));
     cudaMemcpy(pmaxindex, &maxindex, sizeof(int), cudaMemcpyHostToDevice );
 
-    // choose number of threads and blocks
-    dim3 threadnum = 256;
-    dim3 blocknum =  dvecx.size() / threadnum.x + 1; 
+    //short arrays are sorted with simple method
+    //long arrays are sorted with the usage of shared memory and dynamic parallelism
+    if(maxindex <= 1024) {
+        // choose number of threads and blocks
+        dim3 threadnum = 256;
+        dim3 blocknum =  dvecx.size() / threadnum.x + 1; 
 
-    // dsimpleGPUintegrator<<<blocknum, threadnum>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
-    dGPUintegrator<<<1,1>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
+        dsimpleGPUintegrator<<<blocknum, threadnum>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
+    }
+    else {
+        dGPUintegrator<<<1,1>>>(pdvecx.get(), pdvecy.get(), this->pdGPUintegral, pmaxindex);
+    }
+    
     cudaMemcpy(&GPUintegral, this->pdGPUintegral, sizeof(float), cudaMemcpyDeviceToHost);
-
     cudaFree(pmaxindex);
 
     return this->GPUintegral;

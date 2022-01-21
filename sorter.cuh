@@ -6,6 +6,8 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+const int THREAD_NUM = 1024;
+
 
 class Sorter {
     public:

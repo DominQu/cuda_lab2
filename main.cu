@@ -11,7 +11,7 @@
 
 
 const int POINT_RANGE = 100000;
-const int NUM_POINTS = 1<<8; //the program works for NUM_POINTS being a power of two
+const int NUM_POINTS = 1<<11; //the program works for NUM_POINTS being a power of two
 
 
 thrust::host_vector<float> pointgenerator(int num_points) {
