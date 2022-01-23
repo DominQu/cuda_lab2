@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include "point.hpp"
 #include <chrono>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>

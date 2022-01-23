@@ -26,36 +26,39 @@ __global__ void dGPUsubintegrator(float *dvecx,
                                   float *sum,
                                   int *maxindex)
 {
-    __shared__ float pointsx[SHARED_SIZE];
-    __shared__ float pointsy[SHARED_SIZE];
+    __shared__ float pointsx[SHARED_SIZE + 1];
+    __shared__ float pointsy[SHARED_SIZE + 1];
 
-    uint index = blockIdx.x * blockDim.x + threadIdx.x;
-    if(index < *maxindex) {
-        pointsx[threadIdx.x] = dvecx[index];
-        pointsy[threadIdx.x] = dvecy[index];
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    pointsx[threadIdx.x] = dvecx[index];
+    pointsy[threadIdx.x] = dvecy[index];
 
-        __syncthreads();
-        if(threadIdx.x < SHARED_SIZE-1) {
-            pointsy[threadIdx.x] = ((pointsy[threadIdx.x] + pointsy[threadIdx.x+1]) * (pointsx[threadIdx.x+1] - pointsx[threadIdx.x]) ) / 2;
-        }
-        __syncthreads();
+    __syncthreads();
+    if(threadIdx.x < SHARED_SIZE-1) {
+        pointsy[threadIdx.x] = ((pointsy[threadIdx.x] + pointsy[threadIdx.x+1]) * (pointsx[threadIdx.x+1] - pointsx[threadIdx.x]) ) / 2;
+    }
+    else if(threadIdx.x == SHARED_SIZE-1 && blockIdx.x != blockDim.x-1) {
+        pointsy[threadIdx.x] = ((pointsy[threadIdx.x] + dvecy[index+1]) * (dvecx[index+1] - pointsx[threadIdx.x]) ) / 2;
 
-        if(threadIdx.x == 0) {
-            if(blockIdx.x == gridDim.x - 1) {
-                for(int i = 0; i < (*maxindex % SHARED_SIZE); i++) {
-                    sum[blockIdx.x*sizeof(float)] += (float)pointsy[i];
-                }
-                float suma = sum[blockIdx.x*sizeof(float)];
-                // printf("last sum %d ", suma);
+    }
+    __syncthreads();
+
+    if(threadIdx.x == 0) {
+        if(blockIdx.x == gridDim.x - 1) {
+            for(int i = 0; i < SHARED_SIZE - 1; i++) {
+                // printf("i %d\n", i);
+                sum[blockIdx.x*sizeof(float)] += (float)pointsy[i];
             }
-            else {
-                for(int i = 0; i < SHARED_SIZE-1; i++) {
-                    sum[blockIdx.x*sizeof(float)] += (float)pointsy[i];
-                }
-
+            float suma = sum[blockIdx.x*sizeof(float)];
+            // printf("last sum %d ", suma);
+        }
+        else {
+            for(int i = 0; i < SHARED_SIZE; i++) {
+                sum[blockIdx.x*sizeof(float)] += (float)pointsy[i];
             }
 
         }
+
     }
 }
 __global__ void dGPUintegrator(float *dvecx, 
@@ -63,11 +66,9 @@ __global__ void dGPUintegrator(float *dvecx,
                                float *integral,
                                int *maxindex)
 {
-    int numSMs;
-    cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
 
     int threadnum = SHARED_SIZE;
-    int blocknum = *maxindex / threadnum + 1;
+    int blocknum = *maxindex / threadnum;
     // __device__ sum[blocknum];
     // printf("threadnum %d ", threadnum);
     // printf("blocknum %d ", blocknum);

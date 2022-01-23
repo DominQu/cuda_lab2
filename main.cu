@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include "point.hpp"
 #include <thrust/sort.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -11,7 +10,7 @@
 
 
 const int POINT_RANGE = 100000;
-const int NUM_POINTS = 1<<11; //the program works for NUM_POINTS being a power of two
+const int NUM_POINTS = 1<<20; //the program works for NUM_POINTS being a power of two
 
 
 thrust::host_vector<float> pointgenerator(int num_points) {
