@@ -12,3 +12,4 @@ add_executable(lab2 main.cu sorter.cu integrator.cu)
     
 set_property(TARGET lab2 PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 target_include_directories(lab2 PUBLIC ${PROJECT_SOURCE_DIR} /usr/local/cuda-11.4/include/)
+add_compile_options(rnn PUBLIC -g -02)

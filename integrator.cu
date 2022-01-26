@@ -37,7 +37,7 @@ __global__ void dGPUsubintegrator(float *dvecx,
     if(threadIdx.x < SHARED_SIZE-1) {
         pointsy[threadIdx.x] = ((pointsy[threadIdx.x] + pointsy[threadIdx.x+1]) * (pointsx[threadIdx.x+1] - pointsx[threadIdx.x]) ) / 2;
     }
-    else if(threadIdx.x == SHARED_SIZE-1 && blockIdx.x != blockDim.x-1) {
+    else if(threadIdx.x == SHARED_SIZE-1 && blockIdx.x != gridDim.x-1) {
         pointsy[threadIdx.x] = ((pointsy[threadIdx.x] + dvecy[index+1]) * (dvecx[index+1] - pointsx[threadIdx.x]) ) / 2;
 
     }
@@ -66,7 +66,7 @@ __global__ void dGPUintegrator(float *dvecx,
                                float *integral,
                                int *maxindex)
 {
-
+    *integral = 0;
     int threadnum = SHARED_SIZE;
     int blocknum = *maxindex / threadnum;
     // __device__ sum[blocknum];
@@ -104,10 +104,6 @@ __global__ void dsimpleGPUintegrator(float *dvecx,
 float Integrator::GPUintegrator(thrust::device_vector<float> &dvecx,
                                 thrust::device_vector<float> &dvecy)
 {
-    // allocate GPU memory
-    // thrust::device_vector<float> dvecx = vecx;
-    // thrust::device_vector<float> dvecy = vecy;
-
     // get device pointer
     thrust::device_ptr<float> pdvecx = dvecx.data();
     thrust::device_ptr<float> pdvecy = dvecy.data();
@@ -119,7 +115,7 @@ float Integrator::GPUintegrator(thrust::device_vector<float> &dvecx,
 
     //short arrays are sorted with simple method
     //long arrays are sorted with the usage of shared memory and dynamic parallelism
-    if(maxindex <= 1024) {
+    if(maxindex <= 1024 ) {
         // choose number of threads and blocks
         dim3 threadnum = 256;
         dim3 blocknum =  dvecx.size() / threadnum.x + 1; 
