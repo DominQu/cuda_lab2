@@ -168,24 +168,19 @@ void BitonicSort(thrust::device_vector<float>& dpointsx,
 
 void Sorter::GPUsort(thrust::device_vector<float>& dpointsx,
     thrust::device_vector<float>& dpointsy) {
-    auto start2 = std::chrono::high_resolution_clock::now();
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
 
-    // allocate GPU memory
-    // thrust::device_vector<float> dpointsx = pointsx;
-    // thrust::device_vector<float> dpointsy = pointsy;
-
-    // thrust::sort_by_key(dpointsx.begin(), dpointsx.end(), dpointsy.begin());
     BitonicSort(dpointsx, dpointsy);
 
-    // get device pointer
-    // thrust::device_ptr<float> pdpointsx = dpointsx.data();
-    // thrust::device_ptr<float> pdpointsy = dpointsy.data();
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    printf ("Sort duration: %f ms\n", time);
 
-    cudaDeviceSynchronize();
-    auto stop2 = std::chrono::high_resolution_clock::now();
-    auto durationmili2 = std::chrono::duration_cast<std::chrono::milliseconds>(stop2 - start2);
-    auto durationmicro2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2);
-    std::cout << "Sort duration: " << durationmili2.count() << "." << durationmicro2.count() << " miliseconds" << std::endl;
 }
 
 ///////////////////////////////////////////////////
@@ -195,15 +190,13 @@ void Sorter::CPUsort(thrust::host_vector<float>& pointsx,
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    QuickSort(pointsx, pointsy, 0, pointsx.size() - 1);
-    // for(auto i : pointsy) {
-    //     std::cout << i << std::endl;
-    // }
+    thrust::sort_by_key(pointsx.begin(), pointsx.end(), pointsy.begin());
+    // QuickSort(pointsx, pointsy, 0, pointsx.size() - 1);
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto durationmili = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     auto durationmicro = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << "Sort duration: " << durationmili.count() << "." << durationmicro.count() << " miliseconds" << std::endl;
+    std::cout << "Sort duration: " << durationmili.count() << "." << durationmicro.count() - 1000 * durationmili.count() << " ms" << std::endl;
 
 }
 
