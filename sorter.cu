@@ -116,9 +116,9 @@ __global__ void dBitonicSort(float* pointsx, float* pointsy, int* vectorlen) {
 
 __global__ void dBitonicSortGlobalMem(float* pointsx, float* pointsy, int* vectorlen, int size, int step) {
 
-    int separategroups = size / (2*step);
+    int separategroups = size / (2 * step);
     int globalindex = blockIdx.x * blockDim.x + threadIdx.x;
-    if (globalindex >= size / (2* separategroups)) {
+    if (globalindex >= size / (2 * separategroups)) {
         int groupnum = globalindex / step;
         globalindex += groupnum * step;
     }
@@ -179,7 +179,7 @@ void Sorter::GPUsort(thrust::device_vector<float>& dpointsx,
     cudaEventRecord(stop, 0);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&time, start, stop);
-    printf ("Sort duration: %f ms\n", time);
+    printf("Sort duration: %f ms\n", time);
 
 }
 
@@ -190,8 +190,8 @@ void Sorter::CPUsort(thrust::host_vector<float>& pointsx,
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    thrust::sort_by_key(pointsx.begin(), pointsx.end(), pointsy.begin());
-    // QuickSort(pointsx, pointsy, 0, pointsx.size() - 1);
+    //thrust::sort_by_key(pointsx.begin(), pointsx.end(), pointsy.begin());
+     QuickSort(pointsx, pointsy, 0, pointsx.size() - 1);
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto durationmili = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
